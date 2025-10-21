@@ -126,8 +126,18 @@ func resourcePostgreSQLSecurityLabelReadImpl(db *DBConnection, d *schema.Resourc
 	}
 	defer deferredRollback(txn)
 
+	var b bytes.Buffer
+	parts := strings.Split(objectName, ".")
+	for i, part := range parts {
+		if i > 0 {
+			b.WriteString(".")
+		}
+		b.WriteString(pq.QuoteIdentifier(part))
+	}
+	dbObjectName := b.String()
+
 	query := "SELECT objtype, provider, objname, label FROM pg_seclabels WHERE objtype = $1 and objname = $2 and provider = $3"
-	row := db.QueryRow(query, objectType, quoteIdentifier(objectName), quoteIdentifier(provider))
+	row := db.QueryRow(query, objectType, dbObjectName, quoteIdentifier(provider))
 
 	var label, newObjectName, newProvider string
 	err = row.Scan(&objectType, &newProvider, &newObjectName, &label)
