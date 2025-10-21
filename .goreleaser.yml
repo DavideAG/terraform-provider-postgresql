@@ -5,6 +5,8 @@ before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
     - go mod tidy
+env_files:
+  github_token: /Users/davide/Nextcloud/Switcho/postgresql-provider-fork/pat.txt
 builds:
 - env:
     # goreleaser does not work with CGO, it could also complicate
