@@ -126,21 +126,11 @@ func resourcePostgreSQLSecurityLabelReadImpl(db *DBConnection, d *schema.Resourc
 	}
 	defer deferredRollback(txn)
 
-	var b bytes.Buffer
-	parts := strings.Split(objectName, ".")
-	for i, part := range parts {
-		if i > 0 {
-			b.WriteString(".")
-		}
-		b.WriteString(pq.QuoteIdentifier(part))
-	}
-	dbObjectName := b.String()
-
 	query := "SELECT objtype, provider, objname, label FROM pg_seclabels WHERE objtype = $1 and objname = $2 and provider = $3"
-	row := db.QueryRow(query, objectType, dbObjectName, quoteIdentifier(provider))
+	row := db.QueryRow(query, objectType, objectName, provider)
 
-	var label, newObjectName, newProvider string
-	err = row.Scan(&objectType, &newProvider, &newObjectName, &label)
+	var label string
+	err = row.Scan(&objectType, &provider, &objectName, &label)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Printf("[WARN] PostgreSQL security label for (%s '%s') with provider %s not found", objectType, objectName, provider)
@@ -150,12 +140,6 @@ func resourcePostgreSQLSecurityLabelReadImpl(db *DBConnection, d *schema.Resourc
 		return fmt.Errorf("error reading security label: %w", err)
 	}
 
-	if quoteIdentifier(objectName) != newObjectName || quoteIdentifier(provider) != newProvider {
-		// In reality, this should never happen, but if it does, we want to make sure that the state is in sync with the remote system
-		// This will trigger a TF error saying that the provider has a bug if it ever happens
-		objectName = newObjectName
-		provider = newProvider
-	}
 	d.Set(securityLabelObjectTypeAttr, objectType)
 	d.Set(securityLabelObjectNameAttr, objectName)
 	d.Set(securityLabelProviderAttr, provider)
